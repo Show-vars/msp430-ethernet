@@ -69,6 +69,16 @@ uint8_t enc_readPhyByte (uint8_t address) {
   return enc_readRegByte(MIRD + 1);
 }
 
+uint16_t enc_readPhy(uint8_t address) {
+  enc_writeRegByte(MIREGADR, address);
+  enc_writeRegByte(MICMD, MICMD_MIIRD);
+
+  while (enc_readRegByte(MISTAT) & MISTAT_BUSY);
+
+  enc_writeRegByte(MICMD, 0x00);
+  return (enc_readRegByte(MIRD) << 8) | enc_readRegByte(MIRD + 1);
+}
+
 void enc_writePhy (uint8_t address, uint16_t data) {
     enc_writeRegByte(MIREGADR, address);
     enc_writeReg(MIWR, data);
@@ -111,7 +121,7 @@ void enc_init() {
   __delay_cycles(1000000);
 
   // Setting LED
-  enc_writePhy(PHLCON, PHLCON_LACFG3 | PHLCON_LACFG1 | PHLCON_LBCFG2 | PHLCON_LBCFG1 | PHLCON_LBCFG0 | PHLCON_STRCH);
+  enc_writePhy(PHLCON, PHLCON_LACFG2 | PHLCON_LBCFG2 | PHLCON_LBCFG1 | PHLCON_LBCFG0 | PHLCON_STRCH);
 
   // Receive buffer bounds
   enc_writeReg(ERXST, RXSTART_INIT);

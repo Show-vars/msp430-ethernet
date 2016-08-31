@@ -198,10 +198,10 @@
 #define PHCON2_HDLDIS    0x0100
 
 // ENC28J60 PHY PHLCON Register Bit Definitions
-#define PHLCON_LACFG3    0x8000
-#define PHLCON_LACFG2    0x4000
-#define PHLCON_LACFG1    0x2000
-#define PHLCON_LACFG0    0x1000
+#define PHLCON_LACFG3    0x0800
+#define PHLCON_LACFG2    0x0400
+#define PHLCON_LACFG1    0x0200
+#define PHLCON_LACFG0    0x0100
 #define PHLCON_LBCFG3    0x0080
 #define PHLCON_LBCFG2    0x0040
 #define PHLCON_LBCFG1    0x0020

@@ -82,11 +82,19 @@ void main(void) {
   uart_write("LINK: ");
   if(link) uart_write("UP\n"); else uart_write("DOWN\n");
 
-  for(;;) {
-    //uart_write("SEND PACKET: ");
-    enc_packetSend(78, ethpacket);
-    //uart_write("DONE\n");
+  uint16_t ledConf = enc_readPhy(PHLCON);
 
-    //__delay_cycles(1000000);
+  uart_write("LEDCONF: ");
+  uart_printHex(ledConf >> 8);
+  uart_write(" ");
+  uart_printHex(ledConf);
+  uart_write("\n");
+
+  for(;;) {
+    uart_write("SEND PACKET: ");
+    enc_packetSend(78, ethpacket);
+    uart_write("DONE\n");
+
+    __delay_cycles(1000000);
   }
 }

@@ -13,6 +13,7 @@ void enc_writeRegByte (uint8_t address, uint8_t data);
 void enc_writeReg(uint8_t address, uint16_t data);
 
 uint8_t enc_readPhyByte (uint8_t address);
+uint16_t enc_readPhy(uint8_t address);
 
 int enc_isLinkUp();
 
