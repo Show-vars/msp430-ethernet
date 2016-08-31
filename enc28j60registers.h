@@ -197,6 +197,19 @@
 #define PHCON2_JABBER    0x0400
 #define PHCON2_HDLDIS    0x0100
 
+// ENC28J60 PHY PHLCON Register Bit Definitions
+#define PHLCON_LACFG3    0x8000
+#define PHLCON_LACFG2    0x4000
+#define PHLCON_LACFG1    0x2000
+#define PHLCON_LACFG0    0x1000
+#define PHLCON_LBCFG3    0x0080
+#define PHLCON_LBCFG2    0x0040
+#define PHLCON_LBCFG1    0x0020
+#define PHLCON_LBCFG0    0x0010
+#define PHLCON_LFRQ1     0x0008
+#define PHLCON_LFRQ0     0x0004
+#define PHLCON_STRCH     0x0002
+
 // ENC28J60 Packet Control Byte Bit Definitions
 #define PKTCTRL_PHUGEEN  0x08
 #define PKTCTRL_PPADEN   0x04

@@ -28,12 +28,27 @@ void spi_init() {
   UCB0CTL1 &= ~UCSWRST;  // Initialize USCI state machine
 }
 
-void spi_transfer(uint8_t data) {
+void spi_txready() {
   while (!(IFG2 & UCB0TXIFG)); // USCI_A0 TX buffer ready?
-  UCB0TXBUF = data;            // Send data over SPI to Slave
+}
 
+void spi_rxready() {
   while (!(IFG2 & UCB0RXIFG)); // USCI_A0 RX Received?
+}
+
+void spi_send(uint8_t data) {
+  spi_txready();
+  UCB0TXBUF = data;            // Send data over SPI to Slave
+}
+
+void spi_recv() {
+  spi_rxready();
   spi_buf = UCB0RXBUF;         // Store received data
+}
+
+void spi_transfer(uint8_t data) {
+  spi_send(data);
+  spi_recv();
 }
 
 void spi_chipEnable() {

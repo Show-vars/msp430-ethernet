@@ -75,6 +75,24 @@ void enc_writePhy (uint8_t address, uint16_t data) {
     while (enc_readRegByte(MISTAT) & MISTAT_BUSY);
 }
 
+void enc_writeBuf(uint16_t len, uint8_t* data) {
+  if (len > 0) {
+    spi_chipEnable();
+    //spi_transfer(0x00);
+
+    spi_send(ENC28J60_WRITE_BUF_MEM);
+
+    uint8_t curr = *data++; //SPDR = *data++;
+    while (--len) {
+      spi_send(curr); //while (!(SPSR & (1<<SPIF)));
+      curr = *data++;
+    }
+    spi_txready();
+
+    spi_chipDisable();
+  }
+}
+
 int enc_isLinkUp() {
     return (enc_readPhyByte(PHSTAT2) >> 2) & 1;
 }
@@ -89,6 +107,11 @@ void enc_reset() {
 
 void enc_init() {
   enc_reset();
+
+  __delay_cycles(1000000);
+
+  // Setting LED
+  enc_writePhy(PHLCON, PHLCON_LACFG3 | PHLCON_LACFG1 | PHLCON_LBCFG2 | PHLCON_LBCFG1 | PHLCON_LBCFG0 | PHLCON_STRCH);
 
   // Receive buffer bounds
   enc_writeReg(ERXST, RXSTART_INIT);
@@ -108,7 +131,7 @@ void enc_init() {
   // Mac configuring (Enable packet receiving, enable receive and transmit Pause Control Frame)
   enc_writeRegByte(MACON1, MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS);
   // writeRegByte(MACON2, 0x00); Register is just reserved
-  enc_writeRegByte(MACON3, MACON3_FULDPX);
+  enc_writeRegByte(MACON3, MACON3_PADCFG2 | MACON3_PADCFG1 | MACON3_PADCFG0 | MACON3_FULDPX);
 
   // Back-to-Back Inter-Packet Gap. We use Full-Duplex, so set 15h as sed datasheet
   enc_writeRegByte(MABBIPG, 0x15);
@@ -121,4 +144,42 @@ void enc_init() {
 
   // Enable Receive
   enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_RXEN);
+}
+
+void enc_packetSend(uint16_t len, uint8_t* buffer) {
+    int retry = 0;
+
+    while (1) {
+        enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRST);
+        enc_writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_TXRST);
+        enc_writeOp(ENC28J60_BIT_FIELD_CLR, EIR,   EIR_TXERIF | EIR_TXIF);
+
+        // prepare new transmission
+        if (retry == 0) {
+            enc_writeReg(EWRPT, TXSTART_INIT);
+            enc_writeReg(ETXND, TXSTART_INIT + len);
+            enc_writeOp(ENC28J60_WRITE_BUF_MEM, 0, 0x00);
+            enc_writeBuf(len, buffer);
+        }
+
+        // initiate transmission
+        enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
+
+        // wait until transmission has finished; referrring to the data sheet and
+        // to the errata (Errata Issue 13; Example 1) you only need to wait until either
+        // TXIF or TXERIF gets set; however this leads to hangs; apparently Microchip
+        // realized this and in later implementations of their tcp/ip stack they introduced
+        // a counter to avoid hangs; of course they didn't update the errata sheet
+        uint16_t count = 0;
+        while ((enc_readRegByte(EIR) & (EIR_TXIF | EIR_TXERIF)) == 0 && ++count < 1000U);
+
+        if (!(enc_readRegByte(EIR) & EIR_TXERIF) && count < 1000U) {
+            break; // no error
+        }
+
+        // cancel previous transmission if stuck
+        enc_writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_TXRTS);
+
+        break;
+    }
 }

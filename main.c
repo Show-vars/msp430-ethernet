@@ -21,8 +21,8 @@ void uart_init() {
   UCA0CTL1 &= ~UCSWRST;             // Clear UCSWRST to enable USCI_A0
 }
 
-void uart_write(char str[], int length) {
-  for(int i = 0; i < length; i++) {
+void uart_write(char str[]) {
+  for(int i = 0; str[i] != '\0'; i++) {
     while (!(IFG2 & UCA0TXIFG));
     UCA0TXBUF = str[i];
   }
@@ -43,8 +43,24 @@ void uart_printHex(uint8_t n) {
     *--str = c < 10 ? c + '0' : c + 'A' - 10;
   } while(n);
 
-  uart_write(str, 2);
+  uart_write(str);
 }
+
+uint8_t ethpacket[] = {
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // Destination MAC address
+  0x23, 0xde, 0xaa, 0x36, 0x8c, 0x56,  // Source MAC address
+  0x00, 0x40,                          // Type/length (64d = 40h)
+
+  // Data (64 bytes long)
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+}; // 78 bytes total
 
 void main(void) {
   WDTCTL = WDTPW + WDTHOLD;   // Disable watchdog
@@ -53,21 +69,24 @@ void main(void) {
 
 
   uart_init();
-  uart_write("READY\n", 6);
+  uart_write("INITIALIZING: ");
 
   spi_init();
-
   __delay_cycles(1000000);
-
   enc_init();
 
+  uart_write("DONE\n");
+
   uint8_t link = enc_isLinkUp();
-  //uint8_t link = enc_readRegByte (EREVID);
-  //uint8_t link = enc_readOp(ENC28J60_READ_CTRL_REG, ECON2);
 
-  uart_write("LINK:", 5);
-  uart_printHex(link);
-  if(link) uart_write(" UP\n", 4); else uart_write(" DOWN\n", 6);
+  uart_write("LINK: ");
+  if(link) uart_write("UP\n"); else uart_write("DOWN\n");
 
-  for(;;) {}
+  for(;;) {
+    //uart_write("SEND PACKET: ");
+    enc_packetSend(78, ethpacket);
+    //uart_write("DONE\n");
+
+    //__delay_cycles(1000000);
+  }
 }

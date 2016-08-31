@@ -19,4 +19,6 @@ int enc_isLinkUp();
 void enc_reset();
 void enc_init();
 
+void enc_packetSend(uint16_t len, uint8_t* buffer);
+
 #endif
