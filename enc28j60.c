@@ -2,11 +2,11 @@
 #include "enc28j60registers.h"
 #include "spi.h"
 
-#define RXSTART_INIT        0x0000  // start of RX buffer, (must be zero, Rev. B4 Errata point 5)
-#define RXSTOP_INIT         0x0BFF  // end of RX buffer, room for 2 packets
+#define RXSTART_INIT        0x0000    // RX buffer position
+#define RXSTOP_INIT         0x0fff
 
-#define TXSTART_INIT        0x0C00  // start of TX buffer, room for 1 packet
-#define TXSTOP_INIT         0x11FF  // end of TX buffer
+#define TXSTART_INIT        0x1000    // TX buffer position
+#define TXSTOP_INIT         0x1fff
 
 #define MAX_FRAMELEN        1518      // Maximum frame length
 
@@ -121,7 +121,7 @@ void enc_init() {
   __delay_cycles(1000000);
 
   // Setting LED
-  enc_writePhy(PHLCON, PHLCON_LACFG2 | PHLCON_LBCFG2 | PHLCON_LBCFG1 | PHLCON_LBCFG0 | PHLCON_STRCH);
+  enc_writePhy(PHLCON, PHLCON_LACFG2 | PHLCON_LBCFG2 | PHLCON_LBCFG1 | PHLCON_LBCFG0 | PHLCON_LFRQ0 | PHLCON_STRCH);
 
   // Receive buffer bounds
   enc_writeReg(ERXST, RXSTART_INIT);
