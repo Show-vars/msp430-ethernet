@@ -57,17 +57,17 @@ void main(void) {
 
   spi_init();
 
-  enc_reset();
-
   __delay_cycles(1000000);
-  while (!enc_readOp(ENC28J60_READ_CTRL_REG, ESTAT) & ESTAT_CLKRDY);
 
-  uint8_t link = enc_readRegByte (EREVID);
+  enc_init();
+
+  uint8_t link = enc_isLinkUp();
+  //uint8_t link = enc_readRegByte (EREVID);
   //uint8_t link = enc_readOp(ENC28J60_READ_CTRL_REG, ECON2);
 
   uart_write("LINK:", 5);
   uart_printHex(link);
-  if(link == 0x80) uart_write(" UP\n", 4); else uart_write(" DOWN\n", 6);
+  if(link) uart_write(" UP\n", 4); else uart_write(" DOWN\n", 6);
 
   for(;;) {}
 }

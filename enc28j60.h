@@ -10,11 +10,13 @@ void enc_setBank (uint8_t address);
 
 uint8_t enc_readRegByte (uint8_t address);
 void enc_writeRegByte (uint8_t address, uint8_t data);
+void enc_writeReg(uint8_t address, uint16_t data);
 
-uint8_t readPhyByte (uint8_t address);
+uint8_t enc_readPhyByte (uint8_t address);
 
 int enc_isLinkUp();
 
 void enc_reset();
+void enc_init();
 
 #endif
