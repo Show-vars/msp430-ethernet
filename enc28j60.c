@@ -8,12 +8,42 @@
 #define TXSTART_INIT        0x1000    // TX buffer position
 #define TXSTOP_INIT         0x1fff
 
-#define MAX_FRAMELEN        1518      // Maximum frame length
+uint8_t enc_readOp (uint8_t op, uint8_t address);
+void enc_chipEnable ();
 
-uint8_t enc_bank = 0;
+uint8_t enc_readOp (uint8_t op, uint8_t address);
+void enc_writeOp (uint8_t op, uint8_t address, uint8_t data);
+
+void enc_setBank (uint8_t address);
+
+uint8_t enc_readRegByte (uint8_t address);
+void enc_writeRegByte (uint8_t address, uint8_t data);
+void enc_writeReg(uint8_t address, uint16_t data);
+
+uint8_t enc_readPhyByte (uint8_t address);
+uint16_t enc_readPhy(uint8_t address);
+void enc_writePhy (uint8_t address, uint16_t data);
+
+void enc_readBuf(uint16_t len, uint8_t* data);
+void enc_writeBuf(uint16_t len, uint8_t* data);
+
+/*
+ *  =================================================
+ */
+
+uint8_t enc_bank[] = {0, 0};
+uint8_t enc_chip = 0;
+
+void enc_chipEnable() {
+  if(enc_chip == 0) {
+    spi_chipEnable1();
+  } else {
+    spi_chipEnable2();
+  }
+}
 
 uint8_t enc_readOp (uint8_t op, uint8_t address) {
-  spi_chipEnable();
+  enc_chipEnable();
 
   spi_transfer(op | (address & ADDR_MASK));
   spi_transfer(0x00);
@@ -28,7 +58,7 @@ uint8_t enc_readOp (uint8_t op, uint8_t address) {
 }
 
 void enc_writeOp (uint8_t op, uint8_t address, uint8_t data) {
-  spi_chipEnable();
+  enc_chipEnable();
 
   spi_transfer(op | (address & ADDR_MASK));
   spi_transfer(data);
@@ -37,10 +67,10 @@ void enc_writeOp (uint8_t op, uint8_t address, uint8_t data) {
 }
 
 void enc_setBank (uint8_t address) {
-  if ((address & BANK_MASK) != enc_bank) {
+  if ((address & BANK_MASK) != enc_bank[enc_chip]) {
     enc_writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0);
-    enc_bank = address & BANK_MASK;
-    enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, enc_bank >> 5);
+    enc_bank[enc_chip] = address & BANK_MASK;
+    enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, enc_bank[enc_chip] >> 5);
   }
 }
 
@@ -54,9 +84,9 @@ void enc_writeRegByte (uint8_t address, uint8_t data) {
   enc_writeOp(ENC28J60_WRITE_CTRL_REG, address, data);
 }
 
-void enc_writeReg(uint8_t address, uint16_t data) {
-    enc_writeRegByte(address, data);
-    enc_writeRegByte(address + 1, data >> 8);
+void enc_writeReg (uint8_t address, uint16_t data) {
+  enc_writeRegByte(address, data);
+  enc_writeRegByte(address + 1, data >> 8);
 }
 
 uint8_t enc_readPhyByte (uint8_t address) {
@@ -69,7 +99,7 @@ uint8_t enc_readPhyByte (uint8_t address) {
   return enc_readRegByte(MIRD + 1);
 }
 
-uint16_t enc_readPhy(uint8_t address) {
+uint16_t enc_readPhy (uint8_t address) {
   enc_writeRegByte(MIREGADR, address);
   enc_writeRegByte(MICMD, MICMD_MIIRD);
 
@@ -80,35 +110,52 @@ uint16_t enc_readPhy(uint8_t address) {
 }
 
 void enc_writePhy (uint8_t address, uint16_t data) {
-    enc_writeRegByte(MIREGADR, address);
-    enc_writeReg(MIWR, data);
-    while (enc_readRegByte(MISTAT) & MISTAT_BUSY);
+  enc_writeRegByte(MIREGADR, address);
+  enc_writeReg(MIWR, data);
+  while (enc_readRegByte(MISTAT) & MISTAT_BUSY);
+}
+
+void enc_readBuf(uint16_t len, uint8_t* data) {
+  if (len > 0) {
+    enc_chipEnable();
+    spi_send(ENC28J60_READ_BUF_MEM);
+
+    while (len--) {
+      spi_transfer(0x00);
+      *data++  = spi_buf;
+    }
+
+    spi_chipDisable();
+  }
 }
 
 void enc_writeBuf(uint16_t len, uint8_t* data) {
   if (len > 0) {
-    spi_chipEnable();
-    //spi_transfer(0x00);
-
+    enc_chipEnable();
     spi_send(ENC28J60_WRITE_BUF_MEM);
 
-    uint8_t curr = *data++; //SPDR = *data++;
-    while (--len) {
-      spi_send(curr); //while (!(SPSR & (1<<SPIF)));
-      curr = *data++;
-    }
+    while (len--) spi_send(*data++);
+
     spi_txready();
 
     spi_chipDisable();
   }
 }
 
+/*
+ *  =================================================
+ */
+
+void enc_chipSelect(uint8_t c) {
+  enc_chip = c;
+}
+
 int enc_isLinkUp() {
-    return (enc_readPhyByte(PHSTAT2) >> 2) & 1;
+  return (enc_readPhyByte(PHSTAT2) >> 2) & 1;
 }
 
 void enc_reset() {
-  spi_chipEnable();
+  enc_chipEnable();
   spi_transfer(ENC28J60_SOFT_RESET);
   spi_chipDisable();
 
@@ -133,25 +180,37 @@ void enc_init() {
   enc_writeReg(ETXND, TXSTOP_INIT);
 
   // Receive filters (enable CRC check only)
-  enc_writeRegByte(ERXFCON, ERXFCON_CRCEN);
+  //enc_writeRegByte(ERXFCON, ERXFCON_CRCEN);
+  enc_writeRegByte(ERXFCON, 0);
 
   // PHY configuring (enable Full-Duplex)
   enc_writePhy(PHCON1, PHCON1_PDPXMD);
 
   // Mac configuring (Enable packet receiving, enable receive and transmit Pause Control Frame)
-  enc_writeRegByte(MACON1, MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS);
+  enc_writeRegByte(MACON1, MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS | MACON1_PASSALL);
   // writeRegByte(MACON2, 0x00); Register is just reserved
-  enc_writeRegByte(MACON3, MACON3_PADCFG2 | MACON3_PADCFG1 | MACON3_PADCFG0 | MACON3_FULDPX);
+  enc_writeRegByte(MACON3, MACON3_PADCFG0 | MACON3_FULDPX);
 
   // Back-to-Back Inter-Packet Gap. We use Full-Duplex, so set 15h as sed datasheet
   enc_writeRegByte(MABBIPG, 0x15);
 
+  // Non-Back-to-Back Inter-Packet Gap. 12h by datasheet
+  enc_writeRegByte(MAIPG, 0x12);
+
   // Max ethernet frame length
   enc_writeReg(MAMXFL, MAX_FRAMELEN);
 
-  // Setting global interrupts (Enable Global INT Interrupt and Receive Packet Pending Interrupt)
-  enc_writeRegByte(EIE, EIE_INTIE | EIE_PKTIE);
+  enc_writeRegByte(MAADR5, 0xff);
+  enc_writeRegByte(MAADR4, 0xff);
+  enc_writeRegByte(MAADR3, 0xff);
+  enc_writeRegByte(MAADR2, 0xff);
+  enc_writeRegByte(MAADR1, 0xff);
+  enc_writeRegByte(MAADR0, 0xff);
 
+  // Setting global interrupts (Enable Global INT Interrupt and Receive Packet Pending Interrupt)
+  // enc_writeRegByte(EIE, EIE_INTIE | EIE_PKTIE);
+
+  enc_setBank(ECON1);
   // Enable Receive
   enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_RXEN);
 }
@@ -175,11 +234,6 @@ void enc_packetSend(uint16_t len, uint8_t* buffer) {
         // initiate transmission
         enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
 
-        // wait until transmission has finished; referrring to the data sheet and
-        // to the errata (Errata Issue 13; Example 1) you only need to wait until either
-        // TXIF or TXERIF gets set; however this leads to hangs; apparently Microchip
-        // realized this and in later implementations of their tcp/ip stack they introduced
-        // a counter to avoid hangs; of course they didn't update the errata sheet
         uint16_t count = 0;
         while ((enc_readRegByte(EIR) & (EIR_TXIF | EIR_TXERIF)) == 0 && ++count < 1000U);
 
@@ -192,4 +246,49 @@ void enc_packetSend(uint16_t len, uint8_t* buffer) {
 
         break;
     }
+}
+
+uint8_t unreleasedPacket[] = {0, 0};
+uint16_t nextPacketPtr[] = {RXSTART_INIT, RXSTART_INIT};
+
+uint16_t enc_packetReceive (uint16_t bufferSize, uint8_t* buffer) {
+    uint16_t len = 0;
+
+    if (unreleasedPacket[enc_chip]) {
+        if (nextPacketPtr[enc_chip] == 0)
+            enc_writeReg(ERXRDPT, RXSTOP_INIT);
+        else
+            enc_writeReg(ERXRDPT, nextPacketPtr[enc_chip] - 1);
+        unreleasedPacket[enc_chip] = 0;
+    }
+
+    if (enc_readRegByte(EPKTCNT) > 0) {
+        enc_writeReg(ERDPT, nextPacketPtr[enc_chip]);
+
+        struct {
+            uint16_t nextPacket;
+            uint16_t byteCount;
+            uint16_t status;
+        } header;
+
+        enc_readBuf(sizeof header, (uint8_t*) &header);
+
+        nextPacketPtr[enc_chip] = header.nextPacket;
+
+        len = header.byteCount;
+
+        if (len < bufferSize) bufferSize = len;
+
+        if ((header.status & 0x80) == 0)
+            len = 0;
+        else
+            enc_readBuf(bufferSize, buffer);
+
+        //buffer[len] = 0;
+
+        unreleasedPacket[enc_chip] = 1;
+
+        enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
+    }
+    return len;
 }

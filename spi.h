@@ -15,7 +15,8 @@ void spi_recv();
 
 void spi_transfer(uint8_t data);
 
-void spi_chipEnable();
+void spi_chipEnable1();
+void spi_chipEnable2();
 void spi_chipDisable();
 
 #endif
