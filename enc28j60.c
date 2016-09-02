@@ -29,6 +29,8 @@ void enc_writeBuf(uint16_t len, uint8_t* data);
 
 /*
  *  =================================================
+ *    Private functions
+ *  =================================================
  */
 
 uint8_t enc_bank[] = {0, 0};
@@ -144,6 +146,8 @@ void enc_writeBuf(uint16_t len, uint8_t* data) {
 
 /*
  *  =================================================
+ *    Public functions
+ *  =================================================
  */
 
 void enc_chipSelect(uint8_t c) {
@@ -188,8 +192,8 @@ void enc_init() {
 
   // Mac configuring (Enable packet receiving, enable receive and transmit Pause Control Frame)
   enc_writeRegByte(MACON1, MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS | MACON1_PASSALL);
-  // writeRegByte(MACON2, 0x00); Register is just reserved
-  enc_writeRegByte(MACON3, MACON3_PADCFG0 | MACON3_FULDPX);
+
+  enc_writeRegByte(MACON3, MACON3_FULDPX);
 
   // Back-to-Back Inter-Packet Gap. We use Full-Duplex, so set 15h as sed datasheet
   enc_writeRegByte(MABBIPG, 0x15);
@@ -200,6 +204,7 @@ void enc_init() {
   // Max ethernet frame length
   enc_writeReg(MAMXFL, MAX_FRAMELEN);
 
+  // Set device MAC-address (not used)
   enc_writeRegByte(MAADR5, 0xff);
   enc_writeRegByte(MAADR4, 0xff);
   enc_writeRegByte(MAADR3, 0xff);
@@ -210,7 +215,6 @@ void enc_init() {
   // Setting global interrupts (Enable Global INT Interrupt and Receive Packet Pending Interrupt)
   // enc_writeRegByte(EIE, EIE_INTIE | EIE_PKTIE);
 
-  enc_setBank(ECON1);
   // Enable Receive
   enc_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_RXEN);
 }

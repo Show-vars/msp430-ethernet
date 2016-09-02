@@ -12,3 +12,6 @@ compile:
 
 compile-stripped:
 	$(CC) $(SOURCES) $(STRIPARGS) -o $(OUTPUT)
+
+clean:
+	-@rm $(OUTPUT)

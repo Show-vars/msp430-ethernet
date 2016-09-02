@@ -3,7 +3,7 @@
 #ifndef ENC28J60_H
 #define ENC28J60_H
 
-#define MAX_FRAMELEN        1518      // Maximum frame length
+#define MAX_FRAMELEN        1518      // Maximum frame length (MTU + 18)
 
 void enc_chipSelect (uint8_t c);
 
